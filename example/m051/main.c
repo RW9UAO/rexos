@@ -53,7 +53,9 @@ const REX test3 = {
     //function
     test_thread3
 };
-void test_thread3(){
+void test_thread3(){
+    char buff[10];
+    unsigned char s;
     TIME uptime;
     open_stdout();
     printf("test thread3 started\n\r");
@@ -69,8 +71,18 @@ void test_thread3(){
     bool set = true;
     for (;;){
         get_uptime(&uptime);
-        printf("uptime: %02d:%02d.%06d\n\r", uptime.sec / 60, uptime.sec % 60, uptime.usec);
+        printf("uptime: %02d:%02d\n\r", uptime.sec / 60, uptime.sec % 60);
         printf("rtc: %d\n\r", rtc_get());
+
+	ssd1306DrawString(0, 4, "uptime:");
+	s = __utoa(buff, (uptime.sec / 60), 10, false);
+	buff[s] = 0;
+    	ssd1306DrawString(font_u8Width * 8, 4, buff);
+	ssd1306DrawChar(font_u8Width * 11, 4, ':');
+	s = __utoa(buff, (uptime.sec % 60), 10, false);
+	buff[s] = 0;
+    	ssd1306DrawString(font_u8Width * 12, 4, buff);
+
         set ? gpio_set_pin(P40) : gpio_reset_pin(P40);
         wdt_kick();
         set = !set;
@@ -116,23 +128,30 @@ void app(){
         svc_test();
 //    wdt_kick();
     diff = time_elapsed_us(&uptime);
-    printf("average kernel call time: %d.%dus\n\r", diff / TEST_ROUNDS, (diff / (TEST_ROUNDS / 10)) % 10);
+    printf("average kernel call time: %d.%dus\n\r", diff);// / TEST_ROUNDS, (diff / (TEST_ROUNDS / 10)) % 10);
 
     get_uptime(&uptime);
     for (i = 0; i < TEST_ROUNDS; ++i)
         process_switch_test();
 //    wdt_kick();
     diff = time_elapsed_us(&uptime);
-    printf("average switch time: %d.%dus\n\r", diff / TEST_ROUNDS, (diff / (TEST_ROUNDS / 10)) % 10);
+    printf("average switch time: %d.%dus\n\r", diff);// / TEST_ROUNDS, (diff / (TEST_ROUNDS / 10)) % 10);
 
     process_create(&test3);
-        sleep_ms(1000);
+    sleep_ms(1000);
 //        process_info();
 
     ack(core, IPC_GET_INFO, 0, 0, 0);
 #if !(MONOLITH_UART)
     ack(uart, IPC_GET_INFO, 0, 0, 0);
 #endif
+
+
+    oled_init();
+    ssd1306DrawString(0, 0, "RExOS 0.2.5");
+    ssd1306DrawString(0, 1, "App started");
+//    ssd1306DrawChar(0,0, 'A');
+//    ssd1306DrawChar(10,0, 'B');
 
     bool set = true;
     for (;;){

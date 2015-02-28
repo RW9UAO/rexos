@@ -3,9 +3,12 @@ porting to Nuvoton M051 cortex-M0 aka M0516LBN
 - GPIO (not full)
 - TIMER
 - UART
+- SSD1306 OLED with integrated font 5x8 pix. photo in a Wiki page.
 
 limitations:
 - 50 MHz PLL from internal RC generator
+- OLED only in text mode, use ssd1306DrawString() func
+- only 32-128 char codes in font used
 
 
 terminal view:

@@ -16,8 +16,6 @@
 #define SSD1306_SCLK_PORT	P21
 #define SSD1306_SDAT_PORT	P22
 
-//backlight pin
-//#define MT_BACKLIGHT                    B9
 //------------------------------ timeouts ------------------------------------------
 //all CLKS time. Refer to datasheet for more details
 //Address hold time, min 140ns
@@ -34,7 +32,7 @@
 #define TRI                             2
 //------------------------------ general ---------------------------------------------
 //pixel test api
-#define MT_TEST                         1
+#define MT_TEST                         0
 //#define X_MIRROR                        1
 
 //------------------------------ process -------------------------------------------

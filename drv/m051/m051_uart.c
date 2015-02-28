@@ -542,8 +542,8 @@ void m051_uart_init(SHARED_UART_DRV* drv){
     int i;
     for (i = 0; i < UARTS_COUNT; ++i)
         drv->uart.uarts[i] = NULL;
-#if (UART_STDIO)
+//#if (UART_STDIO)
     m051_uart_open_stdio(drv);
-#endif //UART_STDIO
+//#endif //UART_STDIO
 }
 
