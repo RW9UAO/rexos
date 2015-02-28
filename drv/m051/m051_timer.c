@@ -57,6 +57,7 @@ void m051_timer_enable(CORE *core, TIMER_NUM num, unsigned int flags){
     NVIC_SetPriority((IRQn_Type)((uint32_t)TMR0_IRQn + (uint32_t)num), (1<<__NVIC_PRIO_BITS) - 2);
     NVIC_EnableIRQ((IRQn_Type)((uint32_t)TMR0_IRQn + (uint32_t)num));
 }
+//------------------------------------------------------------------------------
 void m051_timer_disable(CORE *core, TIMER_NUM num){
     if (num >= TIMERS_COUNT)    {
         error(ERROR_NOT_SUPPORTED);
@@ -66,30 +67,28 @@ void m051_timer_disable(CORE *core, TIMER_NUM num){
         case TIM_0:
 	    SYSCLK->APBCLK.TMR0_EN = 0;
     	    outpw((uint32_t)&TIMER0->TCSR, 0);      // disable timer
-    	    TIMER0->TCSR.IE = 0;
 	break;
         case TIM_1:
 	    SYSCLK->APBCLK.TMR1_EN = 0;
     	    outpw((uint32_t)&TIMER1->TCSR, 0);      // disable timer
-    	    TIMER1->TCSR.IE = 0;
 	break;
         case TIM_2:
 	    SYSCLK->APBCLK.TMR2_EN = 0;
     	    outpw((uint32_t)&TIMER2->TCSR, 0);      // disable timer
-    	    TIMER2->TCSR.IE = 0;
 	break;
         case TIM_3:
 	    SYSCLK->APBCLK.TMR3_EN = 0;
     	    outpw((uint32_t)&TIMER3->TCSR, 0);      // disable timer
-    	    TIMER3->TCSR.IE = 0;
 	break;
 	default:
             error(ERROR_NOT_SUPPORTED);
 	    return;
 	break;
     }
+    TIMER_REGS[num]->TCSR.IE = 0;
     NVIC_DisableIRQ((IRQn_Type)((uint32_t)TMR0_IRQn + (uint32_t)num));
 }
+//--------------------------------------------------------------------------------
 void m051_timer_setup_hz(CORE* core, TIMER_NUM num, unsigned int hz){
     unsigned int u32ClockValue, u32PreScale, u32TCMPRValue;
 
@@ -104,33 +103,13 @@ void m051_timer_setup_hz(CORE* core, TIMER_NUM num, unsigned int hz){
     for (u32PreScale = 1; u32PreScale < 256; u32PreScale++){
         u32TCMPRValue = u32ClockValue / (hz * u32PreScale);
         if ((u32TCMPRValue > 1) && (u32TCMPRValue < 0x1000000)){        // The TCMPR value must > 1 
-	    switch(num){
-    	    case TIM_0:
-    		TIMER0->TCMPR = u32TCMPRValue;
-    		TIMER0->TCSR.PRESCALE = u32PreScale - 1;
-	    break;
-    	    case TIM_1:
-    		TIMER1->TCMPR = u32TCMPRValue;
-    		TIMER1->TCSR.PRESCALE = u32PreScale - 1;
-	    break;
-    	    case TIM_2:
-    		TIMER2->TCMPR = u32TCMPRValue;
-    		TIMER2->TCSR.PRESCALE = u32PreScale - 1;
-	    break;
-    	    case TIM_3:
-    		TIMER3->TCMPR = u32TCMPRValue;
-    		TIMER3->TCSR.PRESCALE = u32PreScale - 1;
-	    break;
-	    default:
-        	error(ERROR_NOT_SUPPORTED);
-		return;
-	    break;
-	    }
+	TIMER_REGS[num]->TCMPR = u32TCMPRValue;
+	TIMER_REGS[num]->TCSR.PRESCALE = u32PreScale - 1;
 	return;
 	}
     }
 }
-
+//---------------------------------------------------------------------------------
 void m051_timer_start(TIMER_NUM num){
 	TIMER_T * tTMR;
     if (num >= TIMERS_COUNT)    {
@@ -142,7 +121,7 @@ void m051_timer_start(TIMER_NUM num){
         tTMR->TCSR.CEN = 1;
     }
 }
-
+//-------------------------------------------------------
 void m051_timer_stop(TIMER_NUM num){
 	TIMER_T * tTMR;
     if (num >= TIMERS_COUNT)    {
@@ -154,7 +133,7 @@ void m051_timer_stop(TIMER_NUM num){
         tTMR->TCSR.CEN = 0;
     }
 }
-
+//-------------------------------------------------------------
 void hpet_isr(int vector, void* param){
     if(vector == TIMER_VECTORS[0]){
         TIMER0->TISR.TIF = 1;
@@ -170,7 +149,7 @@ void hpet_isr(int vector, void* param){
     }
     timer_hpet_timeout();
 }
-
+//-----------------------------------------------------------
 // value in us
 void hpet_start(unsigned int value, void* param){
     unsigned int u32ClockValue, u32PreScale, u32TCMPRValue;
@@ -179,58 +158,25 @@ void hpet_start(unsigned int value, void* param){
     u32PreScale = u32ClockValue / value / 1000;
     u32TCMPRValue = u32ClockValue / (u32PreScale * value);
 
-    if(HPET_TIMER == TIM_0){
-    	TIMER0->TCMPR = u32TCMPRValue;
-    	TIMER0->TCSR.PRESCALE = u32PreScale - 1;
-        TIMER0->TCSR.CEN = 1;
-    }
-    if(HPET_TIMER == TIM_1){
-    	TIMER1->TCMPR = u32TCMPRValue;
-    	TIMER1->TCSR.PRESCALE = u32PreScale - 1;
-        TIMER1->TCSR.CEN = 1;
-    }
-    if(HPET_TIMER == TIM_2){
-    	TIMER2->TCMPR = u32TCMPRValue;
-    	TIMER2->TCSR.PRESCALE = u32PreScale - 1;
-        TIMER2->TCSR.CEN = 1;
-    }
-    if(HPET_TIMER == TIM_3){
-    	TIMER3->TCMPR = u32TCMPRValue;
-    	TIMER3->TCSR.PRESCALE = u32PreScale - 1;
-        TIMER3->TCSR.CEN = 1;
-    }
+    	TIMER_REGS[HPET_TIMER]->TCMPR = u32TCMPRValue;
+    	TIMER_REGS[HPET_TIMER]->TCSR.PRESCALE = u32PreScale - 1;
+        TIMER_REGS[HPET_TIMER]->TCSR.CEN = 1;
 }
-
+//--------------------------------------------------------
 void hpet_stop(void* param){
     m051_timer_stop(HPET_TIMER);
 }
-
+//------------------------------------------------------
 unsigned int hpet_elapsed(void* param){
     unsigned int u32ClockValue, u32PreScale, u32TCMPRValue;
 
     u32ClockValue = __IRC22M;
-    if(HPET_TIMER == TIM_0){
-        u32PreScale = TIMER0->TCSR.PRESCALE + 1;
-	u32TCMPRValue = TIMER0->TDR;
-    }
-    if(HPET_TIMER == TIM_1){
-        u32PreScale = TIMER1->TCSR.PRESCALE + 1;
-	u32TCMPRValue = TIMER1->TDR;
-    }
-    if(HPET_TIMER == TIM_2){
-        u32PreScale = TIMER2->TCSR.PRESCALE + 1;
-	u32TCMPRValue = TIMER2->TDR;
-    }
-    if(HPET_TIMER == TIM_3){
-        u32PreScale = TIMER3->TCSR.PRESCALE + 1;
-	u32TCMPRValue = TIMER3->TDR;
-    }
-
-//printk("hpet_elapsed: %d\r\n", u32ClockValue / ( u32PreScale * u32TCMPRValue) );
+        u32PreScale   = TIMER_REGS[HPET_TIMER]->TCSR.PRESCALE + 1;
+	u32TCMPRValue = TIMER_REGS[HPET_TIMER]->TDR;
 
     return u32ClockValue / ( u32PreScale * u32TCMPRValue);
 }
-
+//----------------------------------------------------------------------
 //#if (TIMER_SOFT_RTC)
 void second_pulse_isr(int vector, void* param){
     if(vector == TIMER_VECTORS[0]){
@@ -248,7 +194,7 @@ void second_pulse_isr(int vector, void* param){
     timer_second_pulse();
 }
 //#endif
-
+//---------------------------------------------------------------------------------
 #if (SYS_INFO)
 void m051_timer_info(){
     printd("HPET timer: TIM_%d\n\r", HPET_TIMER);
@@ -257,7 +203,7 @@ void m051_timer_info(){
 #endif
 }
 #endif
-
+//----------------------------------------------------------------------------------
 void m051_timer_init(CORE *core){
     //setup HPET
     irq_register(TIMER_VECTORS[HPET_TIMER], hpet_isr, (void*)core);
@@ -276,7 +222,7 @@ void m051_timer_init(CORE *core){
     m051_timer_start(SECOND_PULSE_TIMER);
 //#endif
 }
-
+//-----------------------------------------------------------------------------
 bool m051_timer_request(CORE* core, IPC* ipc){
     bool need_post = false;
     switch (ipc->cmd)    {
