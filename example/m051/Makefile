@@ -52,8 +52,7 @@ SRC_C                      += kernel.c dbg.c kirq.c kprocess.c ktimer.c kipc.c k
 SRC_C                      += lib_lib.c lib_time.c lib_stdio.c lib_std.c pool.c printf.c lib_array.c lib_heap.c
 # lib_usb.c stm32_lib_gpio.c
 #drv
-SRC_C				+= m051_gpio.c m051_core.c DrvSYS.c m051_uart.c m051_timer.c
-#SRC_C                      += stm32_power.c stm32_gpio.c stm32_timer.c stm32_rtc.c stm32_core.c stm32_uart.c stm32_analog.c stm32_usb.c stm32_wdt.c
+SRC_C				+= m051_gpio.c m051_core.c DrvSYS.c m051_uart.c m051_timer.c ssd1306.c
 #userspace
 SRC_C                      += stdio.c main.c
 # comm.c

@@ -1,4 +1,5 @@
 #include "DrvUART.h"
+#include "DrvSYS.h"
 #include "m051_uart.h"
 #include "../../userspace/sys.h"
 #include "error.h"
@@ -71,23 +72,7 @@ void m051_uart_on_isr(int vector, void* param){
     //transmission completed and no more data. Disable transmitter
 //    else if ((UART_REGS[port]->CR1 & USART_CR1_TCIE) && (sr & USART_SR_TC))
 //        UART_REGS[port]->CR1 &= ~(USART_CR1_TE | USART_CR1_TCIE);
-    //decode error, if any
-//    if ((sr & (USART_SR_PE | USART_SR_FE | USART_SR_NE | USART_SR_ORE))) {
-    if(IntStatus & 0x04){	//RLS_IF
-/*        if (sr & USART_SR_ORE)
-            drv->uart.uarts[port]->error = ERROR_OVERFLOW;
-        else {
-            __REG_RC32(UART_REGS[port]->DR);
-            if (sr & USART_SR_FE)
-                drv->uart.uarts[port]->error = ERROR_UART_FRAME;
-            else if (sr & USART_SR_PE)
-                drv->uart.uarts[port]->error = ERROR_UART_PARITY;
-            else if  (sr & USART_SR_NE)
-                drv->uart.uarts[port]->error = ERROR_UART_NOISE;
-        }*/
-    	tUART->FCR.RFR =1;
-    	tUART->u32FSR |= tUART->u32FSR;
-    }
+
     //receive data
     if(IntStatus & DRVUART_RDAINT){
         ipc.param3 = temp;
@@ -95,6 +80,24 @@ void m051_uart_on_isr(int vector, void* param){
         ipc.cmd = IPC_UART_ISR_RX;
         ipc.param1 = HAL_HANDLE(HAL_UART, port);
         ipc_ipost(&ipc);
+    }
+
+    //decode error, if any
+    if( IntStatus & 0x04 ){	//RLS_IF
+        if(port == 0)
+	    IntStatus = inpw(&UART0->FSR);
+        if(port == 1)
+	    IntStatus = inpw(&UART1->FSR);
+        if (IntStatus & (1<<0) )
+            drv->uart.uarts[port]->error = ERROR_OVERFLOW;
+        if (IntStatus & (1<<5) )
+            drv->uart.uarts[port]->error = ERROR_UART_FRAME;
+        if (IntStatus & (1<<4) )
+            drv->uart.uarts[port]->error = ERROR_UART_PARITY;
+        if  (IntStatus & (1<<6) )//BIF
+            drv->uart.uarts[port]->error = ERROR_UART_NOISE;
+    	tUART->FCR.RFR =1;
+    	tUART->u32FSR |= tUART->u32FSR;
     }
 }
 //-------------------------------------------------------------------------
@@ -110,6 +113,7 @@ void uart_write_kernel(const char *const buf, unsigned int size, void* param){
 //------------------------------------------------------------
 void m051_uart_set_baudrate_internal(SHARED_UART_DRV* drv, UART_PORT port, const BAUD* config){
     UART_T * tUART;
+    unsigned int clock;
 
     if (port >= UARTS_COUNT){
         error(ERROR_INVALID_PARAMS);
@@ -123,21 +127,47 @@ void m051_uart_set_baudrate_internal(SHARED_UART_DRV* drv, UART_PORT port, const
     tUART = (UART_T *)((uint32_t)UART0 + port);
 
       // Set Parity & Data bits & Stop bits
+    if (config->data_bits == 5){
+      tUART->LCR.WLS    = DRVUART_DATABITS_5;
+    }else
+    if (config->data_bits == 6){
+      tUART->LCR.WLS    = DRVUART_DATABITS_6;
+    }else 
+    if (config->data_bits == 7){
+      tUART->LCR.WLS    = DRVUART_DATABITS_7;
+    }else 
     if (config->data_bits == 8){
       tUART->LCR.WLS    = DRVUART_DATABITS_8;
     }
+
     if (config->parity == 'N'){
         tUART->LCR.SPE    = 0; //
-        tUART->LCR.EPE    = 0; // even parity
-        tUART->LCR.PBE    = 0; // parity enable
-    }
-//        if (config->parity == 'O')
-    if(config->stop_bits == 1){
-      tUART->LCR.NSB    = DRVUART_STOPBITS_1;
+        tUART->LCR.EPE    = 0; //
+        tUART->LCR.PBE    = 0; // parity disable
+    }else 
+    if (config->parity == 'O'){
+        tUART->LCR.SPE    = 0; //
+        tUART->LCR.EPE    = 0; // odd parity
+        tUART->LCR.PBE    = 1; // parity enable
+    }else 
+    if (config->parity == 'E'){
+        tUART->LCR.SPE    = 0; //
+        tUART->LCR.EPE    = 1; // even parity
+        tUART->LCR.PBE    = 1; // parity enable
     }
 
-//      tUART->BAUD.BRD = 415;// for 115200 at 48 MHz
-      tUART->BAUD.BRD = 434;// for 115200 at 50 MHz
+    if(config->stop_bits == 1){
+      tUART->LCR.NSB    = DRVUART_STOPBITS_1;
+    }else 
+    if(config->stop_bits == 2){
+      tUART->LCR.NSB    = DRVUART_STOPBITS_2;
+    }
+
+    //BRD = (clock / baud rate) - 2
+    clock = DrvSYS_GetPLLClockFreq();
+    clock /= config->baud;
+    clock -= 2;
+    tUART->BAUD.BRD = clock;
 }
 //--------------------------------------------------------------------------
 void m051_uart_set_baudrate(SHARED_UART_DRV* drv, UART_PORT port, HANDLE process){
@@ -345,7 +375,6 @@ static inline HANDLE m051_uart_get_rx_stream(SHARED_UART_DRV* drv, UART_PORT por
 }
 //------------------------------------------------------------------------------------------------------------
 void m051_uart_write(SHARED_UART_DRV* drv, UART_PORT port, unsigned int total){
-//    printk("m051_uart_write:\r\n");
     UART_T * tUART;
     tUART = (UART_T *)((uint32_t)UART0 + port);
     if (total)
@@ -379,7 +408,30 @@ static inline void m051_uart_read(SHARED_UART_DRV* drv, UART_PORT port, char c){
     }
 }
 //------------------------------------------------------------------------------------------------------------
+static inline uint16_t m051_uart_get_last_error(SHARED_UART_DRV* drv, UART_PORT port){
+    if (port >= UARTS_COUNT)    {
+        error(ERROR_INVALID_PARAMS);
+        return ERROR_OK;
+    }
+    if (drv->uart.uarts[port] == NULL)    {
+        error(ERROR_NOT_ACTIVE);
+        return ERROR_OK;
+    }
+    return drv->uart.uarts[port]->error;
+}
 
+static inline void m051_uart_clear_error(SHARED_UART_DRV* drv, UART_PORT port){
+    if (port >= UARTS_COUNT)    {
+        error(ERROR_INVALID_PARAMS);
+        return;
+    }
+    if (drv->uart.uarts[port] == NULL)    {
+        error(ERROR_NOT_ACTIVE);
+        return;
+    }
+    drv->uart.uarts[port]->error = ERROR_OK;
+}
+//----------------------------------------------------------------------------------------
 #if (SYS_INFO) && (UART_STDIO)
 //we can't use printf in uart driver, because this can halt driver loop
 void printu(const char *const fmt, ...){
@@ -406,8 +458,6 @@ static inline void m051_uart_info(SHARED_UART_DRV* drv){
 bool m051_uart_request(SHARED_UART_DRV* drv, IPC* ipc){
     bool need_post = false;
 
-//    printk("m051_uart_request, cmd: %#X\r\n", ipc->cmd);
-
     switch (ipc->cmd){
 #if (SYS_INFO)
     case IPC_GET_INFO:
@@ -420,7 +470,7 @@ bool m051_uart_request(SHARED_UART_DRV* drv, IPC* ipc){
         need_post = true;
         break;
     case IPC_CLOSE:
-//        M051_uart_close(drv, HAL_ITEM(ipc->param1));
+        m051_uart_close(drv, HAL_ITEM(ipc->param1));
         need_post = true;
         break;
     case IPC_UART_SET_BAUDRATE:
@@ -428,7 +478,7 @@ bool m051_uart_request(SHARED_UART_DRV* drv, IPC* ipc){
         need_post = true;
         break;
     case IPC_FLUSH:
-//        M051_uart_flush(drv, HAL_ITEM(ipc->param1));
+        m051_uart_flush(drv, HAL_ITEM(ipc->param1));
         need_post = true;
         break;
     case IPC_GET_TX_STREAM:
@@ -440,11 +490,11 @@ bool m051_uart_request(SHARED_UART_DRV* drv, IPC* ipc){
         need_post = true;
         break;
     case IPC_UART_GET_LAST_ERROR:
-//        ipc->param2 = M051_uart_get_last_error(drv, HAL_ITEM(ipc->param1));
+        ipc->param2 = m051_uart_get_last_error(drv, HAL_ITEM(ipc->param1));
         need_post = true;
         break;
     case IPC_UART_CLEAR_ERROR:
-//        M051_uart_clear_error(drv, HAL_ITEM(ipc->param1));
+        m051_uart_clear_error(drv, HAL_ITEM(ipc->param1));
         need_post = true;
         break;
     case IPC_STREAM_WRITE:
@@ -467,8 +517,6 @@ bool m051_uart_request(SHARED_UART_DRV* drv, IPC* ipc){
 #if (UART_STDIO)
 static inline void m051_uart_open_stdio(SHARED_UART_DRV* drv){
     UART_ENABLE ue;
-//    ue.tx = UART_STDIO_TX;
-//    ue.rx = UART_STDIO_RX;
     ue.baud.data_bits = UART_STDIO_DATA_BITS;
     ue.baud.parity = UART_STDIO_PARITY;
     ue.baud.stop_bits = UART_STDIO_STOP_BITS;
@@ -494,8 +542,8 @@ void m051_uart_init(SHARED_UART_DRV* drv){
     int i;
     for (i = 0; i < UARTS_COUNT; ++i)
         drv->uart.uarts[i] = NULL;
-//#if (UART_STDIO)
+#if (UART_STDIO)
     m051_uart_open_stdio(drv);
-//#endif //UART_STDIO
+#endif //UART_STDIO
 }
 
