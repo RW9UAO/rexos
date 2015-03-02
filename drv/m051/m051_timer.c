@@ -99,8 +99,10 @@ void m051_timer_setup_hz(CORE* core, TIMER_NUM num, unsigned int hz){
         return;
     }
 
-    u32ClockValue = DrvSYS_GetHCLKFreq();
+    u32ClockValue = 50000000;//DrvSYS_GetHCLKFreq();	hangup here. WTF???
 //    u32ClockValue = __IRC22M;
+
+//    printk("timer_setup_hz: u32ClockValue %d\r\n", u32ClockValue);
 
     for (u32PreScale = 1; u32PreScale < 256; u32PreScale++){
         u32TCMPRValue = u32ClockValue / (hz * u32PreScale);
@@ -143,17 +145,17 @@ void hpet_isr(int vector, void* param){
 //-----------------------------------------------------------
 // value in us
 void hpet_start(unsigned int value, void* param){
-    unsigned int u32ClockValue, u32TCMPRValue;
+    unsigned int u32ClockValue;//, u32TCMPRValue;
     unsigned char u32PreScale;
 
     u32ClockValue = DrvSYS_GetHCLKFreq();
     u32PreScale = u32ClockValue / 1000000;
-    u32TCMPRValue = value;
+//    u32TCMPRValue = value;
 //printk("hpet_start: value %d, prescaler %d, TCMP %d\r\n", value, u32PreScale, u32TCMPRValue);
 	TIMER_REGS[HPET_TIMER]->TCSR.CRST = 1;
 	TIMER_REGS[HPET_TIMER]->TCSR.TDR_EN = 1;
 
-    	TIMER_REGS[HPET_TIMER]->TCMPR = u32TCMPRValue;
+    	TIMER_REGS[HPET_TIMER]->TCMPR = value;
     	TIMER_REGS[HPET_TIMER]->TCSR.PRESCALE = u32PreScale - 1;
         TIMER_REGS[HPET_TIMER]->TCSR.CEN = 1;
 }
@@ -163,7 +165,7 @@ void hpet_stop(void* param){
 }
 //------------------------------------------------------
 unsigned int hpet_elapsed(void* param){
-    unsigned int u32TCMPRValue, value;
+    unsigned int u32TCMPRValue;
 //    unsigned int u32ClockValue;
 //    unsigned char u32PreScale;
 
@@ -171,11 +173,9 @@ unsigned int hpet_elapsed(void* param){
 //    u32PreScale   = TIMER_REGS[HPET_TIMER]->TCSR.PRESCALE + 1;
     u32TCMPRValue = TIMER_REGS[HPET_TIMER]->TDR;
 
-    value = u32TCMPRValue;
+//printk("hpet: TDR %d\r\n", u32TCMPRValue);
 
-//printk("hpet: TDR %d, value %d\r\n", u32TCMPRValue, value);
-
-    return value;
+    return u32TCMPRValue;
 }
 //----------------------------------------------------------------------
 //#if (TIMER_SOFT_RTC)
@@ -208,7 +208,7 @@ void m051_timer_info(){
 void m051_timer_init(CORE *core){
     //setup HPET
     irq_register(TIMER_VECTORS[HPET_TIMER], hpet_isr, (void*)core);
-    core->timer.hpet_uspsc = DrvSYS_GetHCLKFreq() / 1000000;
+//    core->timer.hpet_uspsc = DrvSYS_GetHCLKFreq() / 1000000;
 //    core->timer.hpet_uspsc = __IRC22M / 1000000;
     m051_timer_enable(core, HPET_TIMER, TIMER_FLAG_ONE_PULSE_MODE /*| TIMER_FLAG_ENABLE_IRQ | (13 << TIMER_FLAG_PRIORITY)*/);
     CB_SVC_TIMER cb_svc_timer;
