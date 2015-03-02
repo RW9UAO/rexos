@@ -1,3 +1,4 @@
+#include "DrvSYS.h"
 #include "m051_timer.h"
 #include "m051_core_private.h"
 #include "m051_driver.h"
@@ -98,7 +99,7 @@ void m051_timer_setup_hz(CORE* core, TIMER_NUM num, unsigned int hz){
         return;
     }
 
-    u32ClockValue = GetTimerClock(num);
+    u32ClockValue = DrvSYS_GetHCLKFreq();
 //    u32ClockValue = __IRC22M;
 
     for (u32PreScale = 1; u32PreScale < 256; u32PreScale++){
@@ -138,20 +139,16 @@ void m051_timer_stop(TIMER_NUM num){
 void hpet_isr(int vector, void* param){
     TIMER_REGS[HPET_TIMER]->TISR.TIF = 1;
     timer_hpet_timeout();
-//    gpio_reset_pin(P33);
-//    printk(".");
 }
 //-----------------------------------------------------------
 // value in us
 void hpet_start(unsigned int value, void* param){
-    unsigned long u32ClockValue, u32TCMPRValue;
+    unsigned int u32ClockValue, u32TCMPRValue;
     unsigned char u32PreScale;
 
-    u32ClockValue = GetTimerClock(num);
-    u32PreScale = 4;
-    u32TCMPRValue = (1000000000 * u32PreScale) / u32ClockValue;
-    u32ClockValue = value * 1000;
-    u32TCMPRValue = u32ClockValue / u32TCMPRValue;
+    u32ClockValue = DrvSYS_GetHCLKFreq();
+    u32PreScale = u32ClockValue / 1000000;
+    u32TCMPRValue = value;
 //printk("hpet_start: value %d, prescaler %d, TCMP %d\r\n", value, u32PreScale, u32TCMPRValue);
 	TIMER_REGS[HPET_TIMER]->TCSR.CRST = 1;
 	TIMER_REGS[HPET_TIMER]->TCSR.TDR_EN = 1;
@@ -159,9 +156,6 @@ void hpet_start(unsigned int value, void* param){
     	TIMER_REGS[HPET_TIMER]->TCMPR = u32TCMPRValue;
     	TIMER_REGS[HPET_TIMER]->TCSR.PRESCALE = u32PreScale - 1;
         TIMER_REGS[HPET_TIMER]->TCSR.CEN = 1;
-
-//	TIMER_REGS[HPET_TIMER]->TCSR.MODE = 0;
-//	TIMER_REGS[HPET_TIMER]->TCSR.IE = 1;
 }
 //--------------------------------------------------------
 void hpet_stop(void* param){
@@ -169,19 +163,19 @@ void hpet_stop(void* param){
 }
 //------------------------------------------------------
 unsigned int hpet_elapsed(void* param){
-    unsigned long u32ClockValue, u32TCMPRValue, value;
-    unsigned char u32PreScale;
+    unsigned int u32TCMPRValue, value;
+//    unsigned int u32ClockValue;
+//    unsigned char u32PreScale;
 
-    u32ClockValue = GetTimerClock(num);
-    u32PreScale   = TIMER_REGS[HPET_TIMER]->TCSR.PRESCALE + 1;
+//    u32ClockValue = DrvSYS_GetHCLKFreq();
+//    u32PreScale   = TIMER_REGS[HPET_TIMER]->TCSR.PRESCALE + 1;
     u32TCMPRValue = TIMER_REGS[HPET_TIMER]->TDR;
 
-    value = 1000000000 / u32ClockValue;
-    value = value * u32PreScale * u32TCMPRValue;
+    value = u32TCMPRValue;
 
-//printk("hpet: TDR %d, value %d\r\n", u32TCMPRValue, value / 1000);
+//printk("hpet: TDR %d, value %d\r\n", u32TCMPRValue, value);
 
-    return value / 1000;
+    return value;
 }
 //----------------------------------------------------------------------
 //#if (TIMER_SOFT_RTC)
@@ -214,7 +208,7 @@ void m051_timer_info(){
 void m051_timer_init(CORE *core){
     //setup HPET
     irq_register(TIMER_VECTORS[HPET_TIMER], hpet_isr, (void*)core);
-//    core->timer.hpet_uspsc = M051_timer_get_clock(core, HPET_TIMER) / 1000000;
+    core->timer.hpet_uspsc = DrvSYS_GetHCLKFreq() / 1000000;
 //    core->timer.hpet_uspsc = __IRC22M / 1000000;
     m051_timer_enable(core, HPET_TIMER, TIMER_FLAG_ONE_PULSE_MODE /*| TIMER_FLAG_ENABLE_IRQ | (13 << TIMER_FLAG_PRIORITY)*/);
     CB_SVC_TIMER cb_svc_timer;
@@ -270,7 +264,7 @@ bool m051_timer_request(CORE* core, IPC* ipc){
         need_post = true;
         break;
     case M051_TIMER_GET_CLOCK:
-        ipc->param2 = GetTimerClock(num);
+        ipc->param2 = DrvSYS_GetHCLKFreq();
 //	ipc->param2 = __IRC22M;
         need_post = true;
         break;
