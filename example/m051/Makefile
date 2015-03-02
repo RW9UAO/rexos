@@ -49,10 +49,10 @@ SRC_C                      += kernel.c dbg.c kirq.c kprocess.c ktimer.c kipc.c k
 #kernel MES
 #SRC_C                      += kmutex.c kevent.c ksem.c
 #lib
-SRC_C                      += lib_lib.c lib_time.c lib_stdio.c lib_std.c pool.c printf.c lib_array.c lib_heap.c font5_8.c
+SRC_C                      += lib_lib.c lib_time.c lib_stdio.c lib_std.c pool.c printf.c lib_array.c lib_heap.c font5_8.c ssd1306.c
 # lib_usb.c stm32_lib_gpio.c
 #drv
-SRC_C				+= m051_gpio.c m051_core.c DrvSYS.c m051_uart.c m051_timer.c ssd1306.c
+SRC_C				+= m051_gpio.c m051_core.c DrvSYS.c m051_uart.c m051_timer.c m051_wdt.c 
 #userspace
 SRC_C                      += stdio.c main.c
 # comm.c

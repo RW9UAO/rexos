@@ -6,6 +6,10 @@
 #if (MONOLITH_UART)
 #include "m051_uart.h"
 #endif
+#if (M051_WDT)
+#include "m051_wdt.h"
+#endif
+
 #include "../../userspace/object.h"
 
 void m051_core();
@@ -77,6 +81,11 @@ void m051_core_loop(CORE* core){
                 need_post = m051_uart_request(core, &ipc);
                 break;
 #endif //MONOLITH_UART
+#if (M051_WDT)
+            case HAL_WDT:
+                need_post = m051_wdt_request(&ipc);
+                break;
+#endif //STM32_WDT
             default:
                 error(ERROR_NOT_SUPPORTED);
                 need_post = true;
@@ -104,6 +113,9 @@ void m051_core(){
     m051_uart_init(&core);
 //#endif
 
+#if (M051_WDT)
+    m051_wdt_init();
+#endif
 
     m051_core_loop(&core);
 }

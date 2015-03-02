@@ -117,23 +117,23 @@ void app(){
     open_stdin();
 
     printf("App started\n\r");
-//    wdt_kick();
+    wdt_kick();
 
     //first second signal may go faster
     sleep_ms(1000);
-//    wdt_kick();
+    wdt_kick();
 
     get_uptime(&uptime);
     for (i = 0; i < TEST_ROUNDS; ++i)
         svc_test();
-//    wdt_kick();
+    wdt_kick();
     diff = time_elapsed_us(&uptime);
     printf("average kernel call time: %d.%dus\n\r", diff / TEST_ROUNDS, (diff / (TEST_ROUNDS / 10)) % 10);
 
     get_uptime(&uptime);
     for (i = 0; i < TEST_ROUNDS; ++i)
         process_switch_test();
-//    wdt_kick();
+    wdt_kick();
     diff = time_elapsed_us(&uptime);
     printf("average switch time: %d.%dus\n\r", diff / TEST_ROUNDS, (diff / (TEST_ROUNDS / 10)) % 10);
 
@@ -155,6 +155,7 @@ void app(){
 
     bool set = true;
     for (;;){
+        wdt_kick();
         sleep_ms(1000);
         set ? gpio_set_pin(P34) : gpio_reset_pin(P34);
 	set = !set;

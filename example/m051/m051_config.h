@@ -39,7 +39,7 @@
 //------------------------------- WDT ------------------------------------------------
 #define HARDWARE_WATCHDOG                       1
 //WDT module enable
-#define M051_WDT                               0
+#define M051_WDT                               1
 
 
 #endif // M051_CONFIG_H
