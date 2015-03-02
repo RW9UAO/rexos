@@ -128,14 +128,14 @@ void app(){
         svc_test();
 //    wdt_kick();
     diff = time_elapsed_us(&uptime);
-    printf("average kernel call time: %d.%dus\n\r", diff);// / TEST_ROUNDS, (diff / (TEST_ROUNDS / 10)) % 10);
+    printf("average kernel call time: %d.%dus\n\r", diff / TEST_ROUNDS, (diff / (TEST_ROUNDS / 10)) % 10);
 
     get_uptime(&uptime);
     for (i = 0; i < TEST_ROUNDS; ++i)
         process_switch_test();
 //    wdt_kick();
     diff = time_elapsed_us(&uptime);
-    printf("average switch time: %d.%dus\n\r", diff);// / TEST_ROUNDS, (diff / (TEST_ROUNDS / 10)) % 10);
+    printf("average switch time: %d.%dus\n\r", diff / TEST_ROUNDS, (diff / (TEST_ROUNDS / 10)) % 10);
 
     process_create(&test3);
     sleep_ms(1000);
