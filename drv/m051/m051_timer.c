@@ -27,22 +27,22 @@ void m051_timer_enable(CORE *core, TIMER_NUM num, unsigned int flags){
     switch(num){
     case TIM_0:        				//setup timer1
 	SYSCLK->APBCLK.TMR0_EN = 1;
-        SYSCLK->CLKSEL1.TMR0_S = 7;		// 22.1184 Mhz
+        SYSCLK->CLKSEL1.TMR0_S = 2;		// HCLK (50 mhz)
         outpw((uint32_t)&TIMER0->TCSR, 0);      // disable timer
 	break;
     case TIM_1:        				//setup timer1
 	SYSCLK->APBCLK.TMR1_EN = 1;
-        SYSCLK->CLKSEL1.TMR1_S = 7;		// 22.1184 Mhz
+        SYSCLK->CLKSEL1.TMR1_S = 2;
         outpw((uint32_t)&TIMER1->TCSR, 0);      // disable timer
 	break;
     case TIM_2:        				//setup timer1
 	SYSCLK->APBCLK.TMR2_EN = 1;
-        SYSCLK->CLKSEL1.TMR2_S = 7;		// 22.1184 Mhz
+        SYSCLK->CLKSEL1.TMR2_S = 2;
         outpw((uint32_t)&TIMER2->TCSR, 0);      // disable timer
 	break;
     case TIM_3:        				//setup timer1
 	SYSCLK->APBCLK.TMR3_EN = 1;
-        SYSCLK->CLKSEL1.TMR3_S = 7;		// 22.1184 Mhz
+        SYSCLK->CLKSEL1.TMR3_S = 2;
         outpw((uint32_t)&TIMER3->TCSR, 0);      // disable timer
 	break;
 	default:
@@ -98,8 +98,8 @@ void m051_timer_setup_hz(CORE* core, TIMER_NUM num, unsigned int hz){
         return;
     }
 
-//    u32ClockValue = M051_timer_get_clock(core, num);
-    u32ClockValue = __IRC22M;
+    u32ClockValue = GetTimerClock(num);
+//    u32ClockValue = __IRC22M;
 
     for (u32PreScale = 1; u32PreScale < 256; u32PreScale++){
         u32TCMPRValue = u32ClockValue / (hz * u32PreScale);
@@ -136,18 +136,6 @@ void m051_timer_stop(TIMER_NUM num){
 }
 //-------------------------------------------------------------
 void hpet_isr(int vector, void* param){
-/*    if(vector == TIMER_VECTORS[0]){
-        TIMER0->TISR.TIF = 1;
-    }
-    if(vector == TIMER_VECTORS[1]){
-        TIMER1->TISR.TIF = 1;
-    }
-    if(vector == TIMER_VECTORS[2]){
-        TIMER2->TISR.TIF = 1;
-    }
-    if(vector == TIMER_VECTORS[3]){
-        TIMER3->TISR.TIF = 1;
-    }*/
     TIMER_REGS[HPET_TIMER]->TISR.TIF = 1;
     timer_hpet_timeout();
 //    gpio_reset_pin(P33);
@@ -159,7 +147,7 @@ void hpet_start(unsigned int value, void* param){
     unsigned long u32ClockValue, u32TCMPRValue;
     unsigned char u32PreScale;
 
-    u32ClockValue = __IRC22M;
+    u32ClockValue = GetTimerClock(num);
     u32PreScale = 4;
     u32TCMPRValue = (1000000000 * u32PreScale) / u32ClockValue;
     u32ClockValue = value * 1000;
@@ -184,7 +172,7 @@ unsigned int hpet_elapsed(void* param){
     unsigned long u32ClockValue, u32TCMPRValue, value;
     unsigned char u32PreScale;
 
-    u32ClockValue = __IRC22M;
+    u32ClockValue = GetTimerClock(num);
     u32PreScale   = TIMER_REGS[HPET_TIMER]->TCSR.PRESCALE + 1;
     u32TCMPRValue = TIMER_REGS[HPET_TIMER]->TDR;
 
@@ -227,7 +215,7 @@ void m051_timer_init(CORE *core){
     //setup HPET
     irq_register(TIMER_VECTORS[HPET_TIMER], hpet_isr, (void*)core);
 //    core->timer.hpet_uspsc = M051_timer_get_clock(core, HPET_TIMER) / 1000000;
-    core->timer.hpet_uspsc = __IRC22M / 1000000;
+//    core->timer.hpet_uspsc = __IRC22M / 1000000;
     m051_timer_enable(core, HPET_TIMER, TIMER_FLAG_ONE_PULSE_MODE /*| TIMER_FLAG_ENABLE_IRQ | (13 << TIMER_FLAG_PRIORITY)*/);
     CB_SVC_TIMER cb_svc_timer;
     cb_svc_timer.start = hpet_start;
@@ -282,8 +270,8 @@ bool m051_timer_request(CORE* core, IPC* ipc){
         need_post = true;
         break;
     case M051_TIMER_GET_CLOCK:
-//        ipc->param2 = M051_timer_get_clock(core, ipc->param1);
-	ipc->param2 = __IRC22M;
+        ipc->param2 = GetTimerClock(num);
+//	ipc->param2 = __IRC22M;
         need_post = true;
         break;
     default:
